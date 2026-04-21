@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template
 
 app = Flask(__name__)
 
@@ -18,6 +18,11 @@ def validar_device(data):
 
 @app.route("/", methods=["GET"])
 def inicio():
+    return render_template("index.html")
+
+
+@app.route("/api", methods=["GET"])
+def api_info():
     return jsonify({
         "mensaje": "API REST de inventario de TI activa",
         "endpoints": [

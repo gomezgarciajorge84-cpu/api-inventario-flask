@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inventario TI</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="background-shapes"></div>
+
+  <header class="hero">
+    <div class="hero-content">
+      <h1>Inventario de Dispositivos de TI</h1>
+      <p>Gestiona laptops, impresoras, routers y más desde una interfaz moderna, cálida y funcional.</p>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card form-card">
+      <h2>Registrar nuevo dispositivo</h2>
+      <form id="deviceForm">
+        <div class="grid">
+          <div class="input-group">
+            <label for="nombre">Nombre</label>
+            <input type="text" id="nombre" placeholder="Ej. Laptop Dell">
+          </div>
+
+          <div class="input-group">
+            <label for="tipo">Tipo</label>
+            <input type="text" id="tipo" placeholder="Ej. Laptop, Router, Impresora">
+          </div>
+
+          <div class="input-group">
+            <label for="estado">Estado</label>
+            <select id="estado">
+              <option value="">Selecciona</option>
+              <option value="Disponible">Disponible</option>
+              <option value="En uso">En uso</option>
+              <option value="Dañado">Dañado</option>
+            </select>
+          </div>
+
+          <div class="input-group">
+            <label for="area">Área</label>
+            <select id="area">
+              <option value="">Selecciona</option>
+              <option value="Soporte">Soporte</option>
+              <option value="Redes">Redes</option>
+              <option value="Administración">Administración</option>
+            </select>
+          </div>
+
+          <div class="input-group full-width">
+            <label for="fecha_registro">Fecha de registro</label>
+            <input type="date" id="fecha_registro">
+          </div>
+        </div>
+
+        <div class="buttons">
+          <button type="submit" class="btn primary">Guardar dispositivo</button>
+          <button type="button" class="btn secondary" onclick="cargarDevices()">Recargar lista</button>
+        </div>
+
+        <p id="mensaje" class="mensaje"></p>
+      </form>
+    </section>
+
+    <section class="card table-card">
+      <div class="table-header">
+        <h2>Lista de dispositivos</h2>
+        <span class="badge" id="contador">0 registros</span>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nombre</th>
+              <th>Tipo</th>
+              <th>Estado</th>
+              <th>Área</th>
+              <th>Fecha</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody id="tablaDevices">
+            <tr>
+              <td colspan="7" class="empty">No hay dispositivos registrados.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const form = document.getElementById("deviceForm");
+    const mensaje = document.getElementById("mensaje");
+    const tabla = document.getElementById("tablaDevices");
+    const contador = document.getElementById("contador");
+
+    async function cargarDevices() {
+      try {
+        const respuesta = await fetch("/devices");
+        const data = await respuesta.json();
+
+        tabla.innerHTML = "";
+
+        if (data.length === 0) {
+          tabla.innerHTML = `
+            <tr>
+              <td colspan="7" class="empty">No hay dispositivos registrados.</td>
+            </tr>
+          `;
+          contador.textContent = "0 registros";
+          return;
+        }
+
+        contador.textContent = `${data.length} registro(s)`;
+
+        data.forEach(device => {
+          const fila = document.createElement("tr");
+          fila.innerHTML = `
+            <td>${device.id}</td>
+            <td>${device.nombre}</td>
+            <td>${device.tipo}</td>
+            <td>${device.estado}</td>
+            <td>${device.area}</td>
+            <td>${device.fecha_registro}</td>
+            <td>
+              <button class="btn danger small" onclick="eliminarDevice(${device.id})">Eliminar</button>
+            </td>
+          `;
+          tabla.appendChild(fila);
+        });
+      } catch (error) {
+        mensaje.textContent = "Error al cargar los dispositivos.";
+        mensaje.className = "mensaje error";
+      }
+    }
+
+    form.addEventListener("submit", async function(e) {
+      e.preventDefault();
+
+      const nuevoDevice = {
+        nombre: document.getElementById("nombre").value.trim(),
+        tipo: document.getElementById("tipo").value.trim(),
+        estado: document.getElementById("estado").value,
+        area: document.getElementById("area").value,
+        fecha_registro: document.getElementById("fecha_registro").value
+      };
+
+      try {
+        const respuesta = await fetch("/devices", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(nuevoDevice)
+        });
+
+        const data = await respuesta.json();
+
+        if (!respuesta.ok) {
+          mensaje.textContent = data.error || "No se pudo guardar el dispositivo.";
+          mensaje.className = "mensaje error";
+          return;
+        }
+
+        mensaje.textContent = "Dispositivo guardado correctamente.";
+        mensaje.className = "mensaje success";
+        form.reset();
+        cargarDevices();
+      } catch (error) {
+        mensaje.textContent = "Error de conexión con el servidor.";
+        mensaje.className = "mensaje error";
+      }
+    });
+
+    async function eliminarDevice(id) {
+      const confirmar = confirm("¿Seguro que deseas eliminar este dispositivo?");
+      if (!confirmar) return;
+
+      try {
+        const respuesta = await fetch(`/devices/${id}`, {
+          method: "DELETE"
+        });
+
+        const data = await respuesta.json();
+
+        if (!respuesta.ok) {
+          mensaje.textContent = data.error || "No se pudo eliminar.";
+          mensaje.className = "mensaje error";
+          return;
+        }
+
+        mensaje.textContent = "Dispositivo eliminado correctamente.";
+        mensaje.className = "mensaje success";
+        cargarDevices();
+      } catch (error) {
+        mensaje.textContent = "Error al eliminar el dispositivo.";
+        mensaje.className = "mensaje error";
+      }
+    }
+
+    cargarDevices();
+  </script>
+</body>
+</html>
